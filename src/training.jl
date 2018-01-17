@@ -35,7 +35,8 @@ Return a Booster trained with the given parameters.
                        maximize::Bool = false, early_stopping_rounds::Union{Int,Void} = nothing,
                        verbose_eval::Union{Bool,Int} = true,
                        xgb_model::Union{Booster,String,Void} = nothing,
-                       callbacks::Union{Vector{Function},Void} = nothing)
+                       callbacks::Union{Vector{Function},Void} = nothing,
+                       save_period::Int = 0, save_name::String = "xgboost")
 
     callbacks_vec = isa(callbacks, Vector{Function}) ? callbacks : Vector{Function}()
 
@@ -115,6 +116,11 @@ Return a Booster trained with the given parameters.
             end
         end
         # Add distributed code
+
+        if (save_period > 0) && (iter % save_period == 0)
+            fname = string(save_name, "_", iter, ".model")
+            save_model(bst, fname)
+        end
     end
 
     # if attr(bst, "best_score") != ""

@@ -96,6 +96,32 @@ include(Pkg.dir("XGBoost") * "/test/utils.jl")
         @test startswith(important_features[1].fname, "f28") == true
     end
 
+    @testset "Save model period/iterations" begin
+        tmp_dir = tempname()
+        try 
+            mkdir(tmp_dir)
+
+            dtrain = DMatrix(Pkg.dir("XGBoost") * "/data/agaricus.txt.train")
+            dtest = DMatrix(Pkg.dir("XGBoost") * "/data/agaricus.txt.test")
+
+            params = Dict("objective" => "binary:logistic",
+                            "eta" => 1,
+                            "max_depth" => 2,
+                            "silent" => 1,
+                            "eval_metric" => ["error", "auc"])
+
+            evals = [(dtrain, "train"), (dtest, "test")]
+            train(params, dtrain; num_boost_round = 100, evals = evals, verbose_eval = true,
+                    early_stopping_rounds = 2, save_period = 2, save_name = joinpath(tmp_dir, "test"))
+            
+            @test readdir(tmp_dir) == String["test_2.model", "test_4.model", "test_6.model"]
+        catch e
+            rethrow(e)
+        finally
+            rm(tmp_dir; force = true, recursive = true)
+        end
+    end
+
     @testset "Example is running" begin
         include("example.jl")
     end
