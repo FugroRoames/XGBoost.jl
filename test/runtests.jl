@@ -122,6 +122,39 @@ include(Pkg.dir("XGBoost") * "/test/utils.jl")
         end
     end
 
+    @testset "Save evaluations to file" begin
+    tmp_dir = tempname()
+    try
+        mkdir(tmp_dir)
+
+        dtrain = DMatrix(Pkg.dir("XGBoost") * "/data/agaricus.txt.train")
+        dtest = DMatrix(Pkg.dir("XGBoost") * "/data/agaricus.txt.test")
+
+        params = Dict("objective" => "binary:logistic",
+                        "eta" => 1,
+                        "max_depth" => 2,
+                        "silent" => 1,
+                        "eval_metric" => ["error", "auc"])
+
+        evals = [(dtrain, "train"), (dtest, "test")]
+        train(params, dtrain; num_boost_round = 10, evals = evals, verbose_eval = true,
+                early_stopping_rounds = 2, eval_save_file = joinpath(tmp_dir, "eval.csv"))
+        evals = readcsv(joinpath(tmp_dir, "eval.csv"))
+        @test evals == Any["test-auc" "test-error" "train-auc" "train-error";
+                            0.960373 0.042831 0.958228 0.046522;
+                            0.97993 0.021726 0.981413 0.022263;
+                            0.998518 0.006207 0.99707 0.007063;
+                            0.998943 0.018001 0.998757 0.0152;
+                            0.99983 0.006207 0.999298 0.007063;
+                            1 0 0.999585 0.001228;
+                            1 0 0.999585 0.001228]
+    catch e
+        rethrow(e)
+    finally
+        rm(tmp_dir; force = true, recursive = true)
+    end
+end
+
     @testset "Example is running" begin
         include("example.jl")
     end
