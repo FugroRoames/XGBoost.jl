@@ -70,7 +70,7 @@ end
 function cb_save_evaluation(period::Int = 1, show_stdv::Bool = true, eval_save_file::AbstractString = "xgboost.log")
     cb_timing = "after"
 
-    # Reset the file if it exists
+    # Overwrite the file if it exists
     write(eval_save_file, "")
 
     function callback(env::CallbackEnv)
@@ -79,7 +79,6 @@ function cb_save_evaluation(period::Int = 1, show_stdv::Bool = true, eval_save_f
         if env.rank != 0 || length(env.results) == 0
             return nothing
         end
-
 
         iter = env.iteration
         cur_results_idx = 1 + iter - env.begin_iteration
@@ -105,6 +104,10 @@ function save_evaluation(results::Dict{String,Dict{String,Matrix{Float64}}}, ite
             for eval_metric in sort(collect(keys(eval_results)))
                 name = string(eval_name, "-", eval_metric)
                 push!(metrics_header, name)
+                if show_stdv && (size(eval_results[eval_metric], 2) > 1)
+                    std_name = string(eval_name, "-", eval_metric, "-std")
+                    push!(metrics_header, std_name)
+                end
             end
         end
         metrics_header = reshape(metrics_header, 1, :)
@@ -121,14 +124,11 @@ function save_evaluation(results::Dict{String,Dict{String,Matrix{Float64}}}, ite
             if num_cols > 1
                 metric_values = eval_metric_results[cur_results_idx, :]
                 mean_metric_value = mean(metric_values)
-
                 push!(metrics, mean_metric_value)
-
-                # TODO do we want this?
-                # if show_stdv
-                #     std_metric_value = std(metric_values)
-                #     print("+", std_metric_value)
-                # end
+                if show_stdv
+                    std_metric_value = std(metric_values)
+                    push!(metrics, std_metric_value)
+                end
             else
                 metric_value = eval_metric_results[cur_results_idx, 1]
                 push!(metrics, metric_value)

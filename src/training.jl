@@ -37,7 +37,9 @@ Return a Booster trained with the given parameters.
                        xgb_model::Union{Booster,String,Void} = nothing,
                        callbacks::Union{Vector{Function},Void} = nothing,
                        save_period::Int = 0, save_name::String = "xgboost",
-                       eval_save_file::Union{String, Void} = nothing)
+                       eval_save_period::Int = 1,
+                       eval_save_std::Bool = true,
+                       eval_save_file::String = "")
 
     callbacks_vec = isa(callbacks, Vector{Function}) ? callbacks : Vector{Function}()
 
@@ -52,8 +54,8 @@ Return a Booster trained with the given parameters.
                                            evals, feval))
     end
 
-    if isa(eval_save_file, String)
-        push!(callbacks_vec, cb_save_evaluation(1, false, eval_save_file))
+    if !isempty(eval_save_file)
+        push!(callbacks_vec, cb_save_evaluation(eval_save_period, eval_save_std, eval_save_file))
     end
 
     # Initialize the Booster with the appropriate caches.
