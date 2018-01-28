@@ -36,7 +36,10 @@ Return a Booster trained with the given parameters.
                        verbose_eval::Union{Bool,Int} = true,
                        xgb_model::Union{Booster,String,Void} = nothing,
                        callbacks::Union{Vector{Function},Void} = nothing,
-                       save_period::Int = 0, save_name::String = "xgboost")
+                       save_period::Int = 0, save_name::String = "xgboost",
+                       eval_save_period::Int = 1,
+                       eval_save_std::Bool = true,
+                       eval_save_file::String = "")
 
     callbacks_vec = isa(callbacks, Vector{Function}) ? callbacks : Vector{Function}()
 
@@ -49,6 +52,10 @@ Return a Booster trained with the given parameters.
     if !isa(early_stopping_rounds, Void)
         push!(callbacks_vec, cb_early_stop(early_stopping_rounds, maximize, verbose_eval, params,
                                            evals, feval))
+    end
+
+    if !isempty(eval_save_file)
+        push!(callbacks_vec, cb_save_evaluation(eval_save_period, eval_save_std, eval_save_file))
     end
 
     # Initialize the Booster with the appropriate caches.

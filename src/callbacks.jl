@@ -67,6 +67,81 @@ function print_evaluation(results::Dict{String,Dict{String,Matrix{Float64}}}, it
 end
 
 
+function cb_save_evaluation(period::Int = 1, show_stdv::Bool = true, eval_save_file::AbstractString = "xgboost.log")
+    cb_timing = "after"
+
+    # Overwrite the file if it exists
+    write(eval_save_file, "")
+
+    function callback(env::CallbackEnv)
+        cb_timing
+
+        if env.rank != 0 || length(env.results) == 0
+            return nothing
+        end
+
+        iter = env.iteration
+        cur_results_idx = 1 + iter - env.begin_iteration
+        if (iter - 1) % period == 0 || iter == env.begin_iteration || iter == env.end_iteration
+            save_evaluation(env.results, iter, cur_results_idx, show_stdv, eval_save_file)
+        end
+
+        return nothing
+    end
+
+    return callback
+end
+
+
+function save_evaluation(results::Dict{String,Dict{String,Matrix{Float64}}}, iter::Int,
+                          cur_results_idx::Int, show_stdv::Bool, eval_save_file::AbstractString)
+
+    # create csv if it doesn't exist and write header
+    if filesize(eval_save_file) == 0
+        metrics_header = []
+        for eval_name in sort(collect(keys(results)))
+            eval_results = results[eval_name]
+            for eval_metric in sort(collect(keys(eval_results)))
+                name = string(eval_name, "-", eval_metric)
+                push!(metrics_header, name)
+                if show_stdv && (size(eval_results[eval_metric], 2) > 1)
+                    std_name = string(eval_name, "-", eval_metric, "-std")
+                    push!(metrics_header, std_name)
+                end
+            end
+        end
+        metrics_header = reshape(metrics_header, 1, :)
+        writecsv(eval_save_file, metrics_header)
+        println("Created new file: $eval_save_file with header: $metrics_header")
+    end
+
+    metrics = []
+    for eval_name in sort(collect(keys(results)))
+        eval_results = results[eval_name]
+        for eval_metric in sort(collect(keys(eval_results)))
+            eval_metric_results = eval_results[eval_metric]
+            num_cols = size(eval_metric_results, 2)
+            if num_cols > 1
+                metric_values = eval_metric_results[cur_results_idx, :]
+                mean_metric_value = mean(metric_values)
+                push!(metrics, mean_metric_value)
+                if show_stdv
+                    std_metric_value = std(metric_values)
+                    push!(metrics, std_metric_value)
+                end
+            else
+                metric_value = eval_metric_results[cur_results_idx, 1]
+                push!(metrics, metric_value)
+            end
+        end
+    end
+
+    open(eval_save_file, "a") do x
+        writecsv(x, reshape(metrics, 1, :))
+    end
+end
+
+
 @compat function cb_early_stop(early_stopping_rounds::Integer, maximize::Bool,
                                verbose_eval::Union{Bool,Int}, params::Dict{String,<:Any},
                                evals::Vector{Tuple{DMatrix,String}}, feval::Union{Function,Void})
