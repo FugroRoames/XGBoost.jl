@@ -27,6 +27,7 @@ provides(BuildProcess,
             @build_steps begin
                 ChangeDirectory(joinpath(BinDeps.srcdir(xgboost), "xgboost"))
                 libcheckout
+                `git submodule update`
                 `bash build.sh`
                 CreateDirectory(BinDeps.libdir(xgboost))
                 `cp lib/libxgboost.so $(BinDeps.libdir(xgboost))`
