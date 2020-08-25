@@ -22,12 +22,13 @@ provides(BuildProcess,
             @build_steps begin
                 ChangeDirectory(BinDeps.srcdir(xgboost))
                 `rm -rf xgboost`
-                `git clone https://github.com/dmlc/xgboost.git --recursive`
+                `git clone https://github.com/dmlc/xgboost.git`
             end
 
             @build_steps begin
                 ChangeDirectory(joinpath(BinDeps.srcdir(xgboost), "xgboost"))
                 libcheckout
+                `git submodule update --init --recursive`
                 `bash build.sh`
                 CreateDirectory(BinDeps.libdir(xgboost))
                 `cp lib/libxgboost.so $(BinDeps.libdir(xgboost))`
